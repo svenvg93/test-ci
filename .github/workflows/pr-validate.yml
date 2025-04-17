@@ -1,0 +1,46 @@
+name: Check PR Template and Label if Invalid
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  check-template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR Template
+        id: validate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const prBody = pr.body;
+
+            const descriptionSection = prBody.match(/## 📃 Description([\s\S]*?)## 📖 Documentation/);
+            const changedSection = prBody.match(/### ✏️ Changed([\s\S]*?)(###|##)/);
+
+            let errors = [];
+
+            if (!descriptionSection || descriptionSection[1].trim().length < 20) {
+              errors.push("📃 **Description** section must be filled out with at least 20 characters.");
+            }
+
+            if (!changedSection || !changedSection[1].match(/-\s(?!one|two)/)) {
+              errors.push("✏️ **Changed** section must be edited and contain at least one meaningful bullet.");
+            }
+
+            if (errors.length > 0) {
+              core.setOutput("should_comment", "true");
+              core.setOutput("message", errors.join("\\n"));
+            } else {
+              core.setOutput("should_comment", "false");
+            }
+
+      - name: Comment and label PR
+        if: steps.validate.outputs.should_comment == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body "${{ steps.validate.outputs.message }}"
+          gh pr edit "$PR_NUMBER" --add-label "needs-template-fix"
