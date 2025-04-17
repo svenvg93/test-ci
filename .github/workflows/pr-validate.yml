@@ -17,17 +17,19 @@ jobs:
         run: |
           # Fetch the CODEOWNERS file
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -L "https://api.github.com/repos/${{ github.repository }}/contents/.github/CODEOWNERS" -o CODEOWNERS
-
+     
       - name: Extract code owners
         id: parse_codeowners
         run: |
           # Parse the CODEOWNERS file to extract usernames
-          codeowners=$(cat CODEOWNERS | grep -v '^#' | awk '{print $1}')
-          echo "::set-output name=codeowners::$(echo $codeowners | tr '\n' ' ')"
+          codeowners=$(cat CODEOWNERS | grep -v '^#' | awk '{for(i=2;i<=NF;i++) print $i}' | grep -o '@[a-zA-Z0-9_-]*' | tr -d '@')
+          echo "codeowners=$(echo $codeowners)" >> $GITHUB_OUTPUT
 
       - name: Skip validation for code owners
-        if: ${{ contains(steps.parse_codeowners.outputs.codeowners, github.actor) == false }}
-        run: echo "PR author is not a code owner, proceeding with validation."
+        if: ${{ contains(steps.parse_codeowners.outputs.codeowners, github.actor) }}
+        run: |
+          echo "PR author is a code owner, skipping validation."
+          exit 0  # Skip the remaining steps
 
       - name: Validate PR Template
         id: validate
