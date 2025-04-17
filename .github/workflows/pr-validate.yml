@@ -2,35 +2,47 @@ name: Check PR Template and Label if Invalid
 
 on:
   pull_request:
-    types: [opened,]
+    types: [opened]
 
 jobs:
-  check-template:
+  check-if-code-owner:
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.draft == false }}  # Skip if draft PR
+    outputs:
+      is_code_owner: ${{ steps.check_ownership.outputs.is_code_owner }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Check if PR author is a code owner
+        id: check_ownership
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const author = context.payload.pull_request.user.login;
+            
+            try {
+              const codeownersContent = await github.rest.repos.getContent({
+                owner,
+                repo,
+                path: '.github/CODEOWNERS',
+              });
+              
+              const content = Buffer.from(codeownersContent.data.content, 'base64').toString();
+              const isCodeOwner = content.includes(`@${author}`);
+              
+              console.log(`PR author: ${author}, Is code owner: ${isCodeOwner}`);
+              core.setOutput('is_code_owner', isCodeOwner);
+            } catch (error) {
+              console.log(`Error fetching CODEOWNERS: ${error}`);
+              core.setOutput('is_code_owner', false);
+            }
 
-      - name: Get CODEOWNERS file
-        id: fetch_codeowners
-        run: |
-          # Fetch the CODEOWNERS file
-          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -L "https://api.github.com/repos/${{ github.repository }}/contents/.github/CODEOWNERS" -o CODEOWNERS
-     
-      - name: Extract code owners
-        id: parse_codeowners
-        run: |
-          # Parse the CODEOWNERS file to extract usernames
-          codeowners=$(cat CODEOWNERS | grep -v '^#' | awk '{for(i=2;i<=NF;i++) print $i}' | grep -o '@[a-zA-Z0-9_-]*' | tr -d '@')
-          echo "codeowners=$(echo $codeowners)" >> $GITHUB_OUTPUT
-
-      - name: Skip validation for code owners
-        if: ${{ contains(steps.parse_codeowners.outputs.codeowners, github.actor) }}
-        run: |
-          echo "PR author is a code owner, skipping validation."
-          exit 0  # Skip the remaining steps
-
+  validate-template:
+    needs: check-if-code-owner
+    if: ${{ needs.check-if-code-owner.outputs.is_code_owner == 'false' }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Validate PR Template
         id: validate
         uses: actions/github-script@v7
