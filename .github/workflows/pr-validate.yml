@@ -2,7 +2,7 @@ name: Check PR Template and Label if Invalid
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize]
+    types: [opened,]
 
 jobs:
   check-template:
@@ -62,7 +62,7 @@ jobs:
             }
 
             if (errors.length > 0) {
-              const commentMessage = errors.join("\n\n");  // Adds a blank line between errors
+              const commentMessage = `Hi! 👋 Please fill in the PR template. The following sections are missing or need attention:\n\n${errors.join("\n\n")}\n\nThanks! 😊`;
               core.setOutput("should_comment", "true");
               core.setOutput("message", commentMessage);
             } else {
