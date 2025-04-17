@@ -2,7 +2,7 @@ name: Check PR Template and Label if Invalid
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, edited]  # Now triggers on both open and edit
 
 jobs:
   check-if-code-owner:
@@ -79,15 +79,46 @@ jobs:
               const commentMessage = `Hi! 👋 Please fill in the PR template. The following sections are missing or need attention:\n\n${errors.join("\n\n")}\n\nThanks! 😊`;
               core.setOutput("should_comment", "true");
               core.setOutput("message", commentMessage);
+              core.setOutput("template_valid", "false");
             } else {
               core.setOutput("should_comment", "false");
+              core.setOutput("template_valid", "true");
             }
 
-      - name: Comment and label PR
-        if: steps.validate.outputs.should_comment == 'true'
+      - name: Comment and label PR if invalid
+        if: ${{ steps.validate.outputs.should_comment == 'true' && github.event.action == 'opened' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           gh pr comment $PR_NUMBER --body "${{ steps.validate.outputs.message }}"
           gh pr edit $PR_NUMBER --add-label "needs-template-fix"
+
+      - name: Check if PR has label
+        id: check_label
+        if: ${{ github.event.action == 'edited' }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pr_number = context.payload.pull_request.number;
+            
+            const pr = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: pr_number
+            });
+            
+            const hasLabel = pr.data.labels.some(label => label.name === 'needs-template-fix');
+            core.setOutput('has_label', hasLabel);
+
+      - name: Remove label if template is now valid
+        if: ${{ github.event.action == 'edited' && steps.check_label.outputs.has_label == 'true' && steps.validate.outputs.template_valid == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr edit $PR_NUMBER --remove-label "needs-template-fix"
+          gh pr comment $PR_NUMBER --body "✅ PR template now looks good! The 'needs-template-fix' label has been removed."
