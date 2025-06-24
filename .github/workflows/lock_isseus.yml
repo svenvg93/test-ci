@@ -1,0 +1,21 @@
+name: Lock closed issues after 7 days
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs daily at midnight UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  lock-issues:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dessant/lock-threads@v5
+        with:
+          issue-inactive-days: '1'
+          issue-comment: >
+            This issue has been closed for over 7 days.
+            Feel free to open a new one and reference this if needed.
+          operations-per-run: 10
