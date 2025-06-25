@@ -18,4 +18,3 @@ jobs:
           issue-comment: >
             This issue has been closed for over 7 days.
             Feel free to open a new one and reference this if needed.
-          operations-per-run: 10
