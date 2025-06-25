@@ -15,7 +15,7 @@ jobs:
       - uses: klaasnicolaas/action-inactivity-lock@v1.1.3
         with:
           days-inactive-issues: 1
-          days-inactive-prs: 60
+          days-inactive-prs: 120
           issue-comment:  >
             This issue has been closed for over 7 days.
             Feel free to open a new one and reference this if needed.
