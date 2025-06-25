@@ -16,9 +16,6 @@ jobs:
         with:
           days-inactive-issues: 1
           days-inactive-prs: 120
-          issue-comment:  >
-            This issue has been closed for over 7 days.
-            Feel free to open a new one and reference this if needed.
       - name: 🔍 Display locked issues
         run: |
           echo "Locked issues: $(echo '${{ steps.lock.outputs.locked-issues }}' | jq)"
