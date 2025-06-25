@@ -1,4 +1,4 @@
-name: Lock closed issues after 7 days
+name: 'Lock inactive issues and PRs'
 
 on:
   schedule:
@@ -9,12 +9,15 @@ permissions:
   issues: write
 
 jobs:
-  lock-issues:
+  lock:
     runs-on: ubuntu-latest
     steps:
-      - uses: dessant/lock-threads@v5
+      - uses: klaasnicolaas/action-inactivity-lock@v1
         with:
-          issue-inactive-days: '1'
-          issue-comment: >
+          days-inactive-issues: 1
+          issue-comment:  >
             This issue has been closed for over 7 days.
             Feel free to open a new one and reference this if needed.
+      - name: 🔍 Display locked issues
+        run: |
+          echo "Locked issues: $(echo '${{ steps.lock.outputs.locked-issues }}' | jq)"
